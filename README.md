@@ -454,3 +454,5 @@ Furthermore, the notion of hidden states and the probabilistic modeling approach
 - https://homepages.ecs.vuw.ac.nz/~marslast/MLbook.html
 - https://www.cs.hmc.edu/~yjw/teaching/cs158/lectures/17_19_HMMs.pdf
 - https://web.stanford.edu/~jurafsky/slp3/A.pdf
+- https://www.nature.com/articles/nbt1004-1315#further-reading
+- https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0024516
