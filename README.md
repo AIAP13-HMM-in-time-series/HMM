@@ -147,15 +147,19 @@ depending on whether the first hidden state is $\textnormal{Dry}$ or $\textnorma
 Let us denote these probabilities as $\delta_1(\textnormal{Dry}) = 0.25$ and $\delta_1(\textnormal{Humid}) = 0.45$.
 
 For the second observation $\textnormal{Sunny}$, there are 4 possible hidden sequences that can generate the observation sequence $(\textnormal{Rainy}, \textnormal{Sunny})$: $(\textnormal{Dry}, \textnormal{Dry}), (\textnormal{Dry}, \textnormal{Humid}), (\textnormal{Humid}, \textnormal{Dry}), (\textnormal{Humid}, \textnormal{Humid})$.
+
 The first probability will be
-$P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Dry}, \textnormal{Dry})) = \delta_1(\textnormal{Rainy}) \times P(\textnormal{Dry}_{t=2}|\textnormal{Dry}_{t=1}) \times P(\textnormal{Sunny}|\textnormal{Dry}_{t=2}) = 0.25 \times 0.6 \times 0.8 = 0.12$.
+$P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Dry}, \textnormal{Dry})) = \delta_1(\textnormal{Dry}) \times P(\textnormal{Dry}_{t=2}|\textnormal{Dry}_{t=1}) \times P(\textnormal{Sunny}|\textnormal{Dry}_{t=2}) = 0.25 \times 0.6 \times 0.8 = 0.12$.
+
 Similarly, we have
 $P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Dry}, \textnormal{Humid})) = 0.25 \times 0.4 \times 0.1 = 0.01$
 $P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Humid}, \textnormal{Dry})) = 0.45 \times 0.3 \times 0.8 = 0.108$
 $P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Humid}, \textnormal{Humid})) = 0.45 \times 0.7 \times 0.1 = 0.0315$
+
 To compute $\delta_2(\textnormal{Dry})$, we take the maximum of the two probabilities $P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Dry}, \textnormal{Dry}))$ and $P((\textnormal{Rainy}, \textnormal{Sunny})|(\textnormal{Humid}, \textnormal{Dry}))$, i.e. we pick the most likely probability path:
 $\delta_2(\textnormal{Dry}) = \max (0.12, 0.108) = 0.12$. 
 Similarly, $\delta_2(\textnormal{Humid} )= \max (0.01, 0.0315) = 0.0315$.
+
 We can repeat this for $t = 3$ to obtain $\delta_t(q_i)$ across all time steps $t$ and hidden states $q_i$:
 
 |   |$o_1 = \textnormal{Rainy}$|$o_2 = \textnormal{Sunny}$|$o_3 = \textnormal{Rainy}$|
@@ -237,10 +241,11 @@ $\lambda_0 = (A_0, B_0, \pi_0)$
     <br>
 2. Expectation Step:
 Using the current model parameters, perform the forward-backward algorithm (or the forward procedure and backward procedure) to calculate the forward and backward probabilities for each time step. From these probabilities, we can calculate the expected state, emission and transition probabilities.
+
 We define the probability of being in state $q_j$ at time $t$ to be
 $\gamma_t(q_i) = \dfrac {\alpha_t(q_i)\beta_t(q_i)} {\sum_{i=1}^N \alpha_t(q_i)\beta_t(q_i)},$
 and the probability of being in state $q_i$ at time $t$ and state $q_j$ at time $t+1$ to be
-$\xi_t(q_i, q_j) = \dfrac {\alpha_t(q_i) a_{ij} b_{jk} \beta_t(q_j)} {\sum_{i=1}^N \sum_{j=1}^N  \alpha_t(q_i) a_{ij} b_{jk} \beta_t(q_j)}$,
+$\xi_t(q_i, q_j) = \dfrac {\alpha_t(q_i) a_{ij} b_{jk} \beta_t(q_j)} {\sum_{i=1}^N \alpha_t(q_i)\beta_t(q_i)}$,
 where $o_{t+1} = k$, and $\alpha_t(q_i)$ and $\beta_t(q_i)$ are as defined earlier.
 Then we have
 Expected number of transitions from state $q_i$ to state $q_j$
@@ -252,7 +257,6 @@ $ =\underset{t = 1, o_t=v_j} {\overset{T}{\sum}} \gamma_t(q_i)$
 Expected frequency in state $q_i$ at time $t=1$
 $ = \gamma_1(q_i)$
 
-    <br>
 3. Maximisation Step:
 Based on the calculated expected values from the expectation step, update the model. This involves re-estimating the transition probabilities, emission probabilities, and initial state probabilities to maximise the likelihood of the observed data. <br>
 $\begin{aligned}
@@ -268,7 +272,6 @@ $\begin{aligned}
 &= \gamma_1(q_i)  
 \end{aligned}$ <br>
 
-    <br>
 4. Iteration:
 Repeat the expectation and maximisation steps until the model parameters converge or reach a predefined stopping criterion.
 
@@ -277,7 +280,525 @@ The diagram below illustrates the Baum-Welch algorithm:
 
 <img src="images\forward-backward-algo.png" width="500"/>
 
-![Click here to view the Jupyter Notebook](HMM_code.html)
+## **Implementing HMM in Python**
+
+In this part, we will use one specific application of Gene decoding to illustrate the full appplication of HMM. The process of addressing the 3 fundamental problems in stages will be demonstrated using one continuous example.
+
+### Example of Genetic Decoding
+
+
+Genetic decoding using an HMM model is a computational approach that aims to decipher the functional elements within a DNA sequence by utilizing the statistical properties of hidden regions. In this context, the DNA sequence is divided into different regions, such as promoters, coding sequences, introns, splice sites, 5' and 3' untranslated regions (UTRs), and regulatory regions.
+
+The HMM model represents the underlying structure of the DNA sequence and its annotations using a set of states, each corresponding to a specific region. The transition matrix captures the probabilities of transitioning from one region to another, reflecting the sequential arrangement of regions in the DNA sequence. The emission matrix represents the probabilities of observing specific nucleotides (A, T, G, C) within each region. It encodes the characteristics and patterns associated with each region.
+
+By training the HMM model using annotated DNA sequences, the model learns the statistical patterns and dependencies between different regions. This allows the model to make predictions about the functional annotations of previously unseen DNA sequences based on their observed nucleotide sequences.
+
+For example, given a DNA sequence, the HMM model can predict the most likely sequence of regions (states) it belongs to, such as promoters, coding sequences, or introns. This provides insights into the functional elements present within the DNA sequence and their potential roles in gene regulation and protein synthesis.
+
+Genetic decoding using an HMM model enables researchers to computationally analyze DNA sequences and infer functional annotations without relying solely on labor-intensive manual annotation. It leverages statistical patterns and dependencies to make predictions about the hidden functional elements within the DNA sequence, contributing to a deeper understanding of the genetic code and its regulatory mechanisms.
+
+| Region Name    | Annotation | Function Description                                             | Analogy                                                   |
+|----------------|------------|------------------------------------------------------------------|-----------------------------------------------------------|
+| Promoter       | P          | Initiates transcription of a gene                                | The director - starts the whole process                   |
+| 5' UTR         | 5          | Not translated, but plays a role in translation regulation       | The introduction - sets the stage and prepares the actors |
+| Coding Sequence| C          | Contains the information that is translated into a protein        | The main act - the part of the play that tells the story  |
+| Intron         | I          | Not translated, removed before translation                       | Intermissions - break between acts, not part of the play  |
+| Splice Site    | S          | Signals where introns should be removed                          | Stagehand signal - instructs when to change the scene     |
+| 3' UTR         | 3          | Not translated, but influences RNA stability and localization    | The curtain call - signals the end of the play            |
+| Regulatory Region|R        | Influences when, where, and how much a gene is expressed         | The stage directions - guide how the play is performed    |
+
+In this simplified example, we will assume there are only 3 'regions', E for exon, I for Intron, N for all other non-transcribed sites. We have obtained the statistics about Transition Matrix, Emission Matrix and Initial Probability Distribution of States (regions) based on millions of DNA sequence pairs manually annotated by biologists.
+
+A: Transition Matrix<br>
+
+|        | E       | I       | N       |
+|--------|---------|---------|---------|
+| E      | 0.7     | 0.2     | 0.1     |
+| I      | 0.1     | 0.6     | 0.3     |
+| N      | 0.3     | 0.3     | 0.4     |
+
+B: Emission Matrix<br>
+
+|        | A       | T       | G       | C       |
+|--------|---------|---------|---------|---------|
+| E      | 0.3     | 0.4     | 0.2     | 0.1     |
+| I      | 0.1     | 0.2     | 0.4     | 0.3     |
+| N      | 0.25    | 0.25    | 0.25    | 0.25    |
+
+pi: Initial Probability<br>
+
+|        | Probability |
+|--------|-------------|
+| E      | 0.6         |
+| I      | 0.3         |
+| N      | 0.1         |
+
+### Initialization of Model with prior knowledge
+
+Through years of hardwork, molecular biologists have build up an ernomous database which consist of genes with their functions annotated. By running statistical algorithms on these data, we can will be able to obtain the transition matrix, emission matrix and initial probability which are required for HMM based decoding tasks
+
+```python
+# define the critical components of a Hidden Markov Model, A, B and pi
+a1 = ProbabilityVector({'1E': 0.7, '2I': 0.2, '3N': 0.1}) # define each row of transition matrix
+a2 = ProbabilityVector({'1E': 0.1, '2I': 0.6, '3N': 0.3})
+a3 = ProbabilityVector({'1E': 0.3, '2I': 0.6, '3N': 0.1})
+A = ProbabilityMatrix({'1E': a1, '2I': a2, '3N': a3}) # combine all rows to form a transition matrix
+
+b1 = ProbabilityVector({'1A': 0.3, '2T': 0.4, '3G': 0.2, '4C': 0.1}) # define each row of emission matrix
+b2 = ProbabilityVector({'1A': 0.1, '2T': 0.2, '3G': 0.4, '4C': 0.3})
+b3 = ProbabilityVector({'1A': 0.35, '2T': 0.15, '3G': 0.25, '4C': 0.25})
+B = ProbabilityMatrix({'1E': b1, '2I': b2, '3N': b3}) # combine all rows to form a emission matrix
+
+pi = ProbabilityVector({'1E': 0.45, '2I': 0.35, '3N': 0.20})
+
+# define a Hidden Markov Chain using A, B and pi
+hmc = HiddenMarkovChain(A, B, pi)
+
+print('\nTransition Matrix:\n', A.values)
+print('\nEmission Matrix:\n', B.values)
+print('\nInitial Probability:\n', pi.values)
+```
+
+```
+Transition Matrix:
+ [[0.7 0.2 0.1]
+ [0.1 0.6 0.3]
+ [0.3 0.6 0.1]]
+
+Emission Matrix:
+ [[0.3  0.4  0.2  0.1 ]
+ [0.1  0.2  0.4  0.3 ]
+ [0.35 0.15 0.25 0.25]]
+
+Initial Probability:
+ [[0.45 0.35 0.2 ]]
+```
+
+### Solving 'Decoding problem' using Viterbi algorithm
+
+Viberbi Algorithm determines the most likely hidden states sequence given a sequence of observations sequence, hence solving the 'Decoding' problem in HMM.
+
+The Viberbi algorithm assumes full knowledge of the model (A, B, pi). The input to the Viterbi algorithm is the observed sequence of nucleotides. The algorithm then computes the most probable sequence of hidden states, representing the functional regions of the gene, by efficiently considering all possible paths through the HMM and selecting the path with the highest score. The output of the Viterbi algorithm is the optimal sequence of hidden states that best explains the observed nucleotide sequence, providing valuable insights into the functional elements and regulatory mechanisms of the gene.
+
+```python
+class HiddenMarkovChain:
+
+    def _betas(self, observations: list) -> np.ndarray:
+        """
+        Compute the beta values (backward probabilities) for a sequence of observations.
+
+        Args:
+            observations: List of observations.
+
+        Returns:
+            Numpy array of beta values.
+        """
+        betas = np.zeros((len(observations), len(self.states)))
+        betas[-1, :] = 1
+        for t in range(len(observations) - 2, -1, -1):
+            betas[t, :] = (self.T.values @ (self.E[observations[t + 1]] \
+                        * betas[t + 1, :].reshape(-1, 1))).reshape(1, -1)
+        return betas
+
+    def uncover(self, observations: list) -> list:
+        """
+        Find the most likely sequence of hidden states given a sequence of observations.
+
+        Args:
+            observations: List of observations.
+
+        Returns:
+            List of the most likely sequence of hidden states.
+        """
+        alphas = self._alphas(observations)
+        betas = self._betas(observations)
+        maxargs = (alphas * betas).argmax(axis=1)
+        return list(map(lambda x: self.states[x], maxargs))
+
+```
+```python
+# given model and an observation sequence, uncover the most likely hidden state sequence
+np.random.seed(40)
+
+observed_sequence, state_sequence = hmc.run(30)
+print('\nobserved_sequence: \n', observed_sequence)
+print('\ntrue_state_sequence: \n', state_sequence)
+
+uncovered_sequence = hmc.uncover(observed_sequence)
+print('\npredicted_state_sequence: \n', state_sequence)
+
+```
+```
+observed_sequence: 
+ ['1A', '2T', '2T', '3G', '3G', '3G', '3G', '4C', '1A', '1A', '2T', '4C', '3G', '4C', '3G', '2T', '3G', '1A', '1A', '2T', '3G', '1A', '3G', '3G', '4C', '4C', '3G', '1A', '2T', '1A', '3G']
+
+true_state_sequence: 
+ ['1E', '2I', '2I', '2I', '2I', '3N', '3N', '1E', '2I', '3N', '1E', '2I', '3N', '2I', '2I', '2I', '1E', '1E', '2I', '2I', '1E', '3N', '2I', '1E', '2I', '3N', '3N', '1E', '3N', '2I', '1E']
+
+predicted_state_sequence: 
+ ['1E', '2I', '2I', '2I', '2I', '3N', '3N', '1E', '2I', '3N', '1E', '2I', '3N', '2I', '2I', '2I', '1E', '1E', '2I', '2I', '1E', '3N', '2I', '1E', '2I', '3N', '3N', '1E', '3N', '2I', '1E']
+```
+
+### Solving 'Evaluation Problem' using Forward algorithm
+
+If we already know a statistical model (A, B, pi) based on prior, we can calculate the likelihood of a given observation sequence being seen, among all possible sequences of its same length that can be generated by the model. This likelihood is called score.
+
+Other than the brute-force way of calculating the score, a dynamic programming approach is used based on the Markovian property of the state and observation sequences. It effectively reduces the time complexity from O(2 * T * N^T) to O(N²T)
+
+```python
+class HiddenMarkovChain:
+    def __init__(self, T, E, pi):
+        """
+        Initialize a HiddenMarkovChain object.
+
+        Args:
+            T: The transmission matrix (A) representing state transition probabilities.
+            E: The emission matrix (B) representing observation (emission) probabilities.
+            pi: The initial probability vector representing the initial distribution of states.
+        """
+        self.T = T  # transmission matrix A
+        self.E = E  # emission matrix B
+        self.pi = pi
+        self.states = pi.states
+        self.observables = E.observables
+
+
+    def score(self, observations: list) -> float:
+        alphas = self._alphas(observations)  # Shape: (n_observations, n_states)
+        return float(alphas[-1].sum())  # Sum over the last set of alphas to get the final score
+
+    def _alphas(self, observations: list) -> np.ndarray:
+        """
+        Compute the alpha values (forward probabilities) for a sequence of observations.
+
+        Args:
+            observations: List of observations.
+
+        Returns:
+            Numpy array of alpha values.
+        """
+        alphas = np.zeros((len(observations), len(self.states)))  # Shape: (n_observations, n_states)
+        alphas[0, :] = self.pi.values * self.E[observations[0]].T  # Initialization based on initial distribution and emission probabilities
+        for t in range(1, len(observations)):
+            # Iteratively compute alpha for each state and each observation
+            alphas[t, :] = (alphas[t - 1, :].reshape(1, -1)  # Shape: (1, n_states)
+                         @ self.T.values) * self.E[observations[t]].T  # Shape: (n_states, n_states), then (n_states,), then broadcasted to (1, n_states)
+        return alphas  # Shape: (n_observations, n_states)
+
+```
+```python
+observations = ['2T', '2T', '4C', '1A', '3G']
+
+print("Score for {} is {:f}.".format(observations, hmc.score(observations)))
+```
+```
+Score for ['2T', '2T', '4C', '1A', '3G'] is 0.000957.
+```
+
+### Demonstration of the Dependency on Stationarity
+
+As mentioned before, one essential condition for HMM to be applicable is the stationarity of the sequence/time series.
+
+In our example, such reliance can be demonstrated via Law of Large numbers. If the sequence is indeed stationary, and our HMM model was accurate about the sequence, when we use the model to predict an infinitely long sequence, the frequency of occurance of each state in this sequence will eventually converge to a fixed value.
+
+```python
+# Demonstration of Law of Large Numbers
+# given a model, with the sequence length increases indefinitely (to 10^5), the probability distribution of the states
+# will will converge to pi (initial state prob distribution)
+
+hmc_s = HiddenMarkovChain(A, B, pi)
+
+stats = {}
+
+# to generate random sequences up to the lengthes specified
+for length in np.logspace(1, 5, 40).astype(int):
+    observation_hist, states_hist = hmc_s.run(length)
+    stats[length] = pd.DataFrame({
+        'observations': observation_hist,
+        'states': states_hist}).applymap(lambda x: int(x[0]))
+
+# manually count the number of occurance of each state, and normalize it by sequence length
+S = np.array(list(map(lambda x: x['states'].value_counts().to_numpy() / len(x), stats.values())))
+
+plt.semilogx(np.logspace(1, 5, 40).astype(int), S)
+plt.xlabel('Chain length T')
+plt.ylabel('Probability')
+plt.title('Converging probabilities.')
+plt.legend(['1E', '2I', '3N'])
+plt.show()
+```
+
+<img src="images\plot_converging_probabilities.png" width="700"/>
+
+
+### Solving 'Learning Problem' using Baum-Welch algorithm
+
+The discussion so half all are based on the assumption of full knowledge of the model. In real life scenario, we may not have an easy way to obtain such full knowledge. Most of time, what we have are a large collection of raw observation sequences, with a limited domain knowledge on how the actual state tranisits, or state transiting to obseravations.
+
+HMM deals with such scenario by fitting/learning the HMM model on the raw observation sequences, using probabilistic inference approaches. Specifically, the transition matrix, emission matrix, and initial probability distribution can be iteratively updated with each set of observed sequences (nucleotides) and its corresponding hidden states (functional regions). The Baum-Welch algorithm utilizes the Expectation-Maximization (EM) framework to iteratively update the model parameters based on the observed sequences, maximizing the likelihood of the data. By iteratively estimating the model parameters, the algorithm improves the model's fit to the observed sequences, enhancing the accuracy of gene decoding. This iterative learning process of the Baum-Welch algorithm is crucial for inferring the underlying structure and statistical patterns of the gene sequences.
+```python
+import numpy as np
+
+from src.variables import HiddenMarkovChain, ProbabilityVector, ProbabilityMatrix
+
+class HiddenMarkovModel:
+    def __init__(self, hml: HiddenMarkovChain):
+        self.layer = hml
+        self._score_init = 0
+        self.score_history = []
+
+    @classmethod
+    def initialize(cls, states: list, observables: list):
+        layer = HiddenMarkovChain.initialize(states, observables)
+        return cls(layer)
+
+    def update(self, observations: list) -> float:
+        alpha = self.layer._alphas(observations)
+        beta = self.layer._betas(observations)
+        digamma = self.layer._digammas(observations)
+        score = alpha[-1].sum()
+        gamma = alpha * beta / score
+
+        L = len(alpha)
+        obs_idx = [self.layer.observables.index(x) \
+                  for x in observations]
+        capture = np.zeros((L, len(self.layer.states), len(self.layer.observables)))
+        for t in range(L):
+            capture[t, :, obs_idx[t]] = 1.0
+
+        pi = np.clip(gamma[0], 0, 1)
+        T = digamma.sum(axis=0) / gamma[:-1].sum(axis=0).reshape(-1, 1)
+        E = (capture * gamma[:, :, np.newaxis]).sum(axis=0) / gamma.sum(axis=0).reshape(-1, 1)
+
+        self.layer.pi = ProbabilityVector.from_numpy(pi, self.layer.states)
+        self.layer.T = ProbabilityMatrix.from_numpy(T, self.layer.states, self.layer.states)
+        self.layer.E = ProbabilityMatrix.from_numpy(E, self.layer.states, self.layer.observables)
+
+        return score
+
+    # Baum-Welch Mechanism
+    def train(self, observations: list, epochs: int, tol=None):
+        self._score_init = 0
+        self.score_history = (epochs + 1) * [0]
+        early_stopping = isinstance(tol, (int, float))
+
+        for epoch in range(1, epochs + 1):
+            score = self.update(observations)
+            print("Training... epoch = {} out of {}, score = {}.".format(epoch, epochs, score))
+            if early_stopping and abs(self._score_init - score) / score < tol:
+                print("Early stopping.")
+                break
+            self._score_init = score
+            self.score_history[epoch] = score
+```
+
+```python
+np.random.seed(42)
+# using the previously generated observation sequence based on the model, to test if we can get back the same model
+observations =  ['4C', '3G', '1A', '4C', '3G', '4C', '1A', '1A', '3G', '2T', '1A', '2T', '4C', '3G', '1A', '1A', '4C', '4C', '1A', '2T', '3G']
+
+# initialize a hidden markov model with random probabilities of A,B,pi
+states = ['1E', '2I', '3N']
+observables = ['1A', '2T', '3G', '4C']
+
+hml = HiddenMarkovChain.initialize(states, observables)
+
+hmm = HiddenMarkovModel(hml)
+
+# training for x epoches
+hmm.train(observations, 200)
+```
+```
+Training... epoch = 1 out of 200, score = 2.0786872604917922e-13.
+Training... epoch = 2 out of 200, score = 5.553631045043906e-13.
+Training... epoch = 3 out of 200, score = 5.572523276925278e-13.
+Training... epoch = 4 out of 200, score = 5.599313364841608e-13.
+Training... epoch = 5 out of 200, score = 5.646318897677139e-13.
+Training... epoch = 6 out of 200, score = 5.733741070420852e-13.
+Training... epoch = 7 out of 200, score = 5.897687587229944e-13.
+Training... epoch = 8 out of 200, score = 6.200218615582896e-13.
+Training... epoch = 9 out of 200, score = 6.733431425260181e-13.
+Training... epoch = 10 out of 200, score = 7.592291566733057e-13.
+Training... epoch = 11 out of 200, score = 8.795893070783118e-13.
+Training... epoch = 12 out of 200, score = 1.0235743084037759e-12.
+Training... epoch = 13 out of 200, score = 1.177741161524607e-12.
+Training... epoch = 14 out of 200, score = 1.3385546114391603e-12.
+Training... epoch = 15 out of 200, score = 1.5077892573240427e-12.
+Training... epoch = 16 out of 200, score = 1.6808568529436985e-12.
+Training... epoch = 17 out of 200, score = 1.843643380002143e-12.
+Training... epoch = 18 out of 200, score = 1.980899935624101e-12.
+Training... epoch = 19 out of 200, score = 2.087089787667699e-12.
+Training... epoch = 20 out of 200, score = 2.168223508641836e-12.
+Training... epoch = 21 out of 200, score = 2.2365188429198796e-12.
+Training... epoch = 22 out of 200, score = 2.3072795016826093e-12.
+Training... epoch = 23 out of 200, score = 2.4020925178888023e-12.
+Training... epoch = 24 out of 200, score = 2.559493384882003e-12.
+Training... epoch = 25 out of 200, score = 2.859260443979617e-12.
+...
+Training... epoch = 197 out of 200, score = 1.4107033641512444e-10.
+Training... epoch = 198 out of 200, score = 1.4107033641512436e-10.
+Training... epoch = 199 out of 200, score = 1.4107033641512454e-10.
+Training... epoch = 200 out of 200, score = 1.4107033641512475e-10.
+```
+
+### Evaluation of Learning Outcome
+
+The result of training can be demonstrated by getting the trained HMM to generate a large quantity of observation sequences based on its A, B, pi, and measure the degree of similarity between the generated observation sequences and ground truth.
+
+```python
+# given the model, generate 100k predictions of observation sequences, each with length T
+
+# Set the number of Markov chains we want to generate
+RUNS = 100000
+
+# Set the length of each Markov chain
+T = 10
+
+# Create a list of zeros with length equals the number of runs
+chains = RUNS * [0]
+
+# For each zero in our list
+for i in range(len(chains)):
+    # Generate a Markov chain using the Hidden Markov Model
+    chain = hmm.layer.run(T)[0]
+
+    # Convert the chain (a list) to a string and replace the zeros in our list with these strings
+    chains[i] = '-'.join(chain)
+```
+```python
+# Convert the list of chains to a pandas Series, then count the occurrence of each unique chain,
+# and convert it into a DataFrame
+df = pd.DataFrame(pd.Series(chains).value_counts(), columns=['counts']).reset_index().rename(columns={'index': 'chain'})
+
+# Split the chain strings into columns for each state in the chain
+df = pd.merge(df, df['chain'].str.split('-', expand=True), left_index=True, right_index=True)
+
+# Initialize an empty list to hold the match results
+s = []
+
+# For each state in our observations
+for i in range(T + 1):
+    # Compare each state in each chain to the corresponding state in our observations
+    # and add the Boolean results to our list
+    s.append(df.apply(lambda x: x[i] == observations[i], axis=1))
+
+# For each chain, count the number of states that match our observations
+df['matched'] = pd.concat(s, axis=1).sum(axis=1)
+
+# Convert counts to percentage
+df['counts'] = df['counts'] / RUNS * 100
+
+# Drop the 'chain' column
+df = df.drop(columns=['chain'])
+
+# Display the first 30 rows of the DataFrame
+df.head(30)
+```
+```
+counts	0	1	2	3	4	5	matched
+0	0.438	4C	1A	1A	1A	1A	1A	2
+1	0.395	4C	3G	1A	1A	1A	1A	3
+2	0.389	4C	1A	4C	1A	1A	1A	1
+3	0.374	4C	1A	1A	1A	4C	1A	2
+4	0.359	4C	1A	1A	1A	1A	4C	3
+5	0.343	4C	1A	1A	4C	1A	1A	3
+6	0.343	4C	3G	4C	1A	1A	1A	2
+7	0.328	4C	1A	1A	3G	1A	1A	2
+8	0.326	4C	1A	1A	1A	1A	3G	2
+9	0.325	4C	1A	1A	1A	3G	1A	3
+10	0.319	4C	1A	4C	1A	4C	1A	1
+11	0.318	4C	3G	1A	1A	4C	1A	3
+12	0.310	4C	1A	3G	1A	1A	1A	1
+13	0.300	4C	1A	4C	4C	1A	1A	2
+14	0.299	4C	1A	4C	1A	1A	3G	1
+15	0.298	4C	3G	1A	4C	1A	1A	4
+16	0.296	4C	1A	4C	1A	1A	4C	2
+17	0.289	4C	3G	1A	1A	1A	4C	4
+18	0.284	4C	1A	1A	4C	1A	4C	4
+19	0.283	4C	1A	1A	1A	3G	3G	3
+20	0.282	4C	1A	1A	4C	4C	1A	3
+21	0.276	4C	1A	4C	3G	1A	1A	1
+22	0.275	4C	3G	1A	1A	3G	1A	4
+23	0.274	4C	1A	1A	4C	1A	3G	3
+24	0.269	4C	1A	1A	3G	4C	1A	2
+25	0.265	4C	3G	1A	1A	1A	3G	3
+26	0.265	4C	1A	3G	1A	4C	1A	1
+27	0.261	4C	3G	3G	1A	1A	1A	2
+28	0.257	4C	3G	1A	3G	1A	1A	3
+29	0.257	4C	1A	4C	4C	1A	4C	3
+```
+
+Alternatively, I can also demonstrate the predictive power by benchmarking the HMM trained using a Baum-Welch algorithm, against another HMM initialized with random transition and emission probabilities.
+
+Both models will be generating the same large number of observation sequences. In each set of generated sequences, the frequency of each unique chain and the number of states in each chain that match a given observation sequence will be counted.
+
+Then we can use a final plot to shows these counts for both the trained and random HMMs. The dotted lines represent the number of matching states in each chain, with green for the trained HMM and black for the random HMM.
+
+The solid lines represent the frequency of occurrence of each chain, with red for the trained HMM and black for the random HMM. The y-axes show the number of matching observations and frequency of occurrence as percentages, and the x-axis is the ordered index of chains.
+
+```python
+# Initialize a hidden Markov model with randomly generated transition and emission probabilities
+hml_rand = HiddenMarkovChain.initialize(states, observables)
+hmm_rand = HiddenMarkovModel(hml_rand)
+
+# Set the number of runs and the length of the chains
+RUNS = 100000
+T = 5
+
+# Generate a list to hold the chains
+chains_rand = RUNS * [0]
+for i in range(len(chains_rand)):
+    # Generate a chain of states using the random HMM
+    chain_rand = hmm_rand.layer.run(T)[0]
+    # Join the states in the chain into a string, separated by '-', and store it in the list
+    chains_rand[i] = '-'.join(chain_rand)
+
+# Create a DataFrame holding the count of each unique chain and split the chain strings into individual state columns
+df2 = pd.DataFrame(pd.Series(chains_rand).value_counts(), columns=['counts']).reset_index().rename(columns={'index': 'chain'})
+df2 = pd.merge(df2, df2['chain'].str.split('-', expand=True), left_index=True, right_index=True)
+
+# Generate a list of Boolean series where each series represents whether the states in a particular position match the observations
+s = []
+for i in range(T + 1):
+    s.append(df2.apply(lambda x: x[i] == observations[i], axis=1))
+
+# Add a new column to the DataFrame that counts the number of matching states in each chain
+df2['matched'] = pd.concat(s, axis=1).sum(axis=1)
+# Convert the counts to a percentage
+df2['counts'] = df2['counts'] / RUNS * 100
+# Drop the chain column
+df2 = df2.drop(columns=['chain'])
+
+# Create a plot to compare the results of the trained and random HMMs
+fig, ax = plt.subplots(1, 1, figsize=(14, 6))
+
+# Plot the number of matching states for each chain
+ax.plot(df['matched'], 'g:')
+ax.plot(df2['matched'], 'k:')
+
+# Set the labels and title of the plot
+ax.set_xlabel('Ordered index')
+ax.set_ylabel('Matching observations')
+ax.set_title('Verification on a 6-observation chain.')
+
+# Create a secondary y-axis for the frequency of occurrence
+ax2 = ax.twinx()
+# Plot the frequency of occurrence for each chain
+ax2.plot(df['counts'], 'r', lw=3)
+ax2.plot(df2['counts'], 'k', lw=3)
+ax2.set_ylabel('Frequency of occurrence [%]')
+
+# Add legends to the plot
+ax.legend(['trained', 'initialized'])
+ax2.legend(['trained', 'initialized'])
+
+# Display gridlines on the plot
+plt.grid()
+# Display the plot
+plt.show()
+```
+
+<img src="images\plot_vs_randomHMM.png" width="700"/>
 
 ## **Comparison Of HMM With Other Models**
 
