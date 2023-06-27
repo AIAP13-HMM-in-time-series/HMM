@@ -977,3 +977,5 @@ Furthermore, the notion of hidden states and the probabilistic modeling approach
 - https://web.stanford.edu/~jurafsky/slp3/A.pdf
 - https://www.nature.com/articles/nbt1004-1315#further-reading
 - https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0024516
+- https://www.ee.columbia.edu/~sfchang/course/svia-F03/papers/fine98hierarchical-hmm.pdf
+- https://getd.libs.uga.edu/pdfs/solaimanpour_sina_201612_ms.pdf
